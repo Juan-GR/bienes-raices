@@ -1,5 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router';
 import HomeView from '../views/HomeView.vue';
+import { useFirebaseAuth } from 'vuefire';
+import { onAuthStateChanged } from 'firebase/auth';
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -21,19 +23,20 @@ const router = createRouter({
       path: '/admin',
       name: 'admin',
       component: () => import('../views/admin/AdminLayout.vue'),
+      meta: { requiresAuth: true },
       children: [
         {
-          path: '/admin/propiedades',
+          path: 'propiedades',
           name: 'admin-properties',
           component: () => import('../views/admin/AdminView.vue')
         },
         {
-          path: '/admin/nueva',
+          path: 'nueva',
           name: 'admin-new-property',
           component: () => import('../views/admin/NewPropertyView.vue')
         },
         {
-          path: '/admin/editar/:id',
+          path: 'editar/:id',
           name: 'admin-edit-property',
           component: () => import('../views/admin/EditPropertyView.vue')
         }
@@ -41,5 +44,31 @@ const router = createRouter({
     }
   ]
 })
+
+// Guard de navegación
+router.beforeEach((to, from, next) => {
+  const requiresAuth = to.matched.some(x => x.meta.requiresAuth)
+  if (requiresAuth) {
+      authenticateUser()
+          .then(() => next())
+          .catch(() => next({ name: 'login' }));
+  } else {
+    next();
+  }
+})
+
+function authenticateUser () {
+  const auth = useFirebaseAuth();
+  return new Promise((resolve, reject) => {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      unsubscribe();
+      if (user) {
+        resolve();
+      } else {
+        reject();
+      }
+    })
+  })
+}
 
 export default router
