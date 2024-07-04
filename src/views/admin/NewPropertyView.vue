@@ -1,11 +1,18 @@
 <script setup>
   import { useForm, useField } from 'vee-validate';
-  import { validationSchema, imageSchema } from '@/validation/propertySchema.js';
+  import { validationSchema, imageSchema } from '@/validation/propertySchema';
   import router from '@/router/index.js';
   import { collection, addDoc } from "firebase/firestore";
   import { useFirestore } from 'vuefire';
+  import useImageUtilities from '@/composables/imageUtilities';
+  import useLocationMap from '@/composables/locationMap.js';
+  import "leaflet/dist/leaflet.css";
+  import { LMap, LTileLayer, LMarker } from "@vue-leaflet/vue-leaflet";
 
   const items = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+
+  const { uploadImage, uploadedImage, url } = useImageUtilities();
+  const { zoom, center, pinchZoom } = useLocationMap();
 
   const db = useFirestore();
 
@@ -15,6 +22,7 @@
       ...imageSchema
     }
   });
+
 
   const title = useField('title');
   const price = useField('price');
@@ -28,9 +36,12 @@
   const onSubmit = handleSubmit(async values => {
     const { image, ...property } = values;
     const docRef = await addDoc(collection(db, "properties"), {
-      ...property
+      ...property,
+      image: url.value,
+      location: center.value
     });
 
+    console.log("Document written with ID: ", docRef.id);
     if (docRef.id) {
       router.push({ name: 'admin-properties' });
     }
@@ -65,7 +76,12 @@
         prepend-icon="mdi-camera"
         v-model="image.value.value"
         :error-messages="image.errorMessage.value"
+        @change="uploadImage($event.target.files[0])"
       />
+      <div v-if="uploadedImage">
+        <p class="font-weight-bold">Imagen subida</p>
+        <img class="w-50" :src="uploadedImage" alt/>
+      </div>
       <v-text-field
         class="mb-5"
         label="Precio"
@@ -117,6 +133,22 @@
           :error-messages="description.errorMessage.value"
       />
       <v-checkbox label="Dispone de piscina" v-model="pool.value.value"/>
+
+      <h2 class="text-center font-weight-bold my-5">Ubicación de la propiedad <span class="text-red">(*)</span></h2>
+      <div class="mt-5">
+        <div style="height:600px">
+          <l-map
+              v-model:zoom="zoom"
+              :center="center"
+              :use-global-leaflet="false"
+          >
+            <l-marker :lat-lng="center" draggable @moveend="pinchZoom"/>
+            <l-tile-layer
+                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+            ></l-tile-layer>
+          </l-map>
+        </div>
+      </div>
       <v-btn color="primary" block @click="onSubmit">Agregar propiedad</v-btn>
     </v-form>
   </v-card>
