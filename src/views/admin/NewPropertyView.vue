@@ -41,7 +41,6 @@
       location: center.value
     });
 
-    console.log("Document written with ID: ", docRef.id);
     if (docRef.id) {
       router.push({ name: 'admin-properties' });
     }
